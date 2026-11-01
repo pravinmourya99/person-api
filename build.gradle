@@ -1,0 +1,137 @@
+plugins {
+    id 'base'
+    alias(libs.plugins.spring.boot) apply false
+}
+
+// Testcontainers only looks in standard socket locations, which misses Colima.
+// Reading the active Docker context works for any Docker runtime.
+def dockerContextHost = null
+if (!System.getenv('DOCKER_HOST')) {
+    try {
+        def inspect = providers.exec {
+            commandLine 'docker', 'context', 'inspect', '--format', '{{.Endpoints.docker.Host}}'
+            ignoreExitValue = true
+        }
+        if (inspect.result.get().exitValue == 0) {
+            dockerContextHost = inspect.standardOutput.asText.get().trim() ?: null
+        }
+    } catch (Exception ignored) {
+        // Docker is not installed: only Testcontainers tests need it, and they report it clearly.
+    }
+}
+
+def springBootBom = libs.spring.boot.bom
+
+subprojects {
+    apply plugin: 'java-library'
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(25)
+        }
+    }
+
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        implementation platform(springBootBom)
+        compileOnly platform(springBootBom)
+
+        testImplementation 'org.junit.jupiter:junit-jupiter'
+        testImplementation 'org.assertj:assertj-core'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+        // Spring needs parameter names to bind @PathVariable without repeating them.
+        options.compilerArgs << '-parameters'
+    }
+
+    tasks.withType(Test).configureEach {
+        // A module may have no tests yet, for example after the sample feature is deleted.
+        failOnNoDiscoveredTests = false
+        testLogging {
+            events 'failed'
+            exceptionFormat = 'full'
+        }
+        if (dockerContextHost) {
+            environment 'DOCKER_HOST', dockerContextHost
+            environment 'TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE', '/var/run/docker.sock'
+        }
+    }
+
+    tasks.named('test') {
+        useJUnitPlatform {
+            excludeTags 'integration'
+        }
+    }
+}
+
+// Fails the build when module dependencies differ from dependencies.txt, in either direction.
+def declaredModuleDependencies = providers.provider {
+    subprojects.collectEntries { module ->
+        def entries = module.configurations.collectMany { configuration ->
+            configuration.dependencies.withType(ProjectDependency).collect { dependency ->
+                [configuration.name, dependency.path.substring(1)]
+            }
+        }.findAll { it[1] != module.name }
+        [module.name, entries.collect { "${it[0]}:${it[1]}".toString() }.sort()]
+    }
+}
+def moduleNames = subprojects*.name.toSet()
+
+def verifyModuleDependencies = tasks.register('verifyModuleDependencies') {
+    group = 'verification'
+    description = 'Checks that module dependencies match dependencies.txt.'
+
+    def rulesFile = layout.projectDirectory.file('dependencies.txt').asFile
+    inputs.file(rulesFile)
+    inputs.property('declared', declaredModuleDependencies)
+    inputs.property('modules', moduleNames)
+
+    doLast {
+        def problems = []
+        def modules = inputs.properties.modules as Set
+        def allowed = modules.collectEntries { [it, [] as Set] }
+
+        rulesFile.getText('UTF-8').readLines()*.trim().findAll { it }.each { line ->
+            def parts = line.split(/\s*(?:→|->)\s*/)
+            if (parts.size() != 2) {
+                problems << "dependencies.txt: cannot read line '${line}'"
+                return
+            }
+            def targets = parts[1].split(/\s*,\s*/) as List
+            ([parts[0]] + targets).findAll { !modules.contains(it) }.each {
+                problems << "dependencies.txt: unknown module '${it}'"
+            }
+            if (allowed.containsKey(parts[0])) {
+                allowed[parts[0]].addAll(targets)
+            }
+        }
+
+        inputs.properties.declared.each { module, entries ->
+            def actual = entries.collect { it.split(':')[1] }.toSet()
+            (actual - allowed[module]).sort().each {
+                problems << "${module} depends on ${it}, which dependencies.txt does not allow"
+            }
+            (allowed[module] - actual).sort().each {
+                problems << "dependencies.txt says ${module} -> ${it}, but ${module}/build.gradle does not declare it"
+            }
+            entries.findAll { it.startsWith('api:') }.each {
+                problems << "${module} uses 'api' for ${it.split(':')[1]}; use 'implementation' so it does not leak to other modules"
+            }
+        }
+
+        if (problems) {
+            throw new GradleException('Module dependencies do not match dependencies.txt:\n  - ' + problems.join('\n  - '))
+        }
+    }
+}
+
+tasks.named('check') { dependsOn verifyModuleDependencies }
+subprojects {
+    tasks.matching { it.name == 'check' }.configureEach { dependsOn verifyModuleDependencies }
+}

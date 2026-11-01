@@ -1,0 +1,34 @@
+package com.example.personservice.persistence.person;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
+@Entity
+@Table(name = "persons")
+public class PersonEntity {
+
+    @Id
+    @Column(length = 36)
+    private String id;
+
+    @Column(nullable = false)
+    private String name;
+
+    protected PersonEntity() {
+    }
+
+    public PersonEntity(String id, String name) {
+        this.id = id;
+        this.name = name;
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+}

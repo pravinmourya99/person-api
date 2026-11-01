@@ -1,0 +1,13 @@
+# Spring Boot's BOM manages every other version, including Flyway, Testcontainers and drivers.
+[versions]
+spring-boot = "4.1.2"
+springdoc = "3.2.0"
+archunit = "1.5.1"
+
+[libraries]
+spring-boot-bom = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
+springdoc-webmvc-ui = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
+archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
+
+[plugins]
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }

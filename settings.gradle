@@ -1,0 +1,3 @@
+rootProject.name = 'person-service'
+
+include 'shared', 'domain', 'persistence', 'api', 'app'

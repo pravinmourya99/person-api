@@ -1,0 +1,12 @@
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+# API docs are off in production. Remove these lines to expose them.
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

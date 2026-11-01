@@ -1,0 +1,6 @@
+package com.example.personservice.domain.person;
+
+import java.util.UUID;
+
+public record Person(UUID id, String name) {
+}

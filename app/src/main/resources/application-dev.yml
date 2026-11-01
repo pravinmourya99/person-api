@@ -1,0 +1,6 @@
+# Matches compose.yaml. Start the database with: docker compose up -d
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/app
+    username: app
+    password: app
