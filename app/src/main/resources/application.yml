@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: person-service
+  profiles:
+    default: dev
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html

@@ -1,0 +1,1 @@
+-- Baseline migration. Add schema-wide objects here; each feature has its own migration.

@@ -1,0 +1,7 @@
+app → api, domain, persistence, shared
+
+api → domain, shared
+
+domain → shared
+
+persistence → domain, shared

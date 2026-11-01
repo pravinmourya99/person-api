@@ -1,0 +1,4 @@
+# The database connection comes from TestContainersConfig.
+spring:
+  jpa:
+    show-sql: false

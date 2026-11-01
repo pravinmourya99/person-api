@@ -1,0 +1,11 @@
+dependencies {
+    implementation project(':domain')
+    implementation project(':shared')
+
+    // REST only: Spring MVC and embedded Tomcat, no WebFlux or view templates.
+    implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation libs.springdoc.webmvc.ui
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+}
